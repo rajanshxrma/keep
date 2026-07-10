@@ -1,5 +1,6 @@
 """Menu bar shell for Keep, built with rumps."""
 
+import multiprocessing
 import threading
 
 import rumps
@@ -156,6 +157,12 @@ class KeepApp(rumps.App):
 
 
 def main() -> None:
+    # Required for voice.py's spawned transcription subprocess (see its
+    # module docstring) to work correctly once this app is frozen into a
+    # py2app bundle -- without this, a frozen app re-executing itself via
+    # multiprocessing's spawn start method can recursively relaunch the
+    # whole app instead of just the worker function.
+    multiprocessing.freeze_support()
     KeepApp().run()
 
 
