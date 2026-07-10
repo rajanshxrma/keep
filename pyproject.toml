@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "keep-assistant"
+dynamic = ["version"]
+description = "A private, on-device assistant for macOS — sees, searches, speaks, and acts. Nothing leaves your machine."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Rajan Sharma" }]
+dependencies = [
+    "langchain-apple-foundation-models",
+    "rumps",
+    "pyobjc-framework-Speech",
+    "pyobjc-framework-AVFoundation",
+    "pyobjc-framework-Vision",
+    "pyobjc-framework-Quartz",
+    "pyobjc-framework-NaturalLanguage",
+    "pdfplumber>=0.10",
+    "numpy",
+]
+
+[project.optional-dependencies]
+mlx = ["mlx-lm", "transformers>=5.7.0,<5.13.0"]
+dev = ["pytest>=7.0", "pillow", "reportlab"]
+
+[project.scripts]
+keep = "keep.cli:main"
+keep-menubar = "keep.menubar:main"
+
+[tool.hatch.version]
+path = "src/keep/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/keep"]
