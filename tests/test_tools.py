@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-MARK = "PRIVATE-AGENT-TEST-DELETE-ME"
+MARK = "KEEP-TEST-DELETE-ME"
 
 
 def _osascript(script: str, timeout: int = 15) -> str:

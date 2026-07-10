@@ -30,7 +30,7 @@ def test_agent_creates_and_cleans_up_reminder():
     # (2700+ reminders on this account) also reliably timed out at 15s.
     from keep.agent import run
 
-    mark = "PRIVATE-AGENT-AGENT-TEST-DELETE-ME"
+    mark = "KEEP-AGENT-TEST-DELETE-ME"
     try:
         run(f"create a reminder titled exactly '{mark}'")
         count = subprocess.run(

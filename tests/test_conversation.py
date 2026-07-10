@@ -32,7 +32,7 @@ def _skip_if_unavailable():
 def test_followup_with_no_tool_keyword_still_uses_tool_backend(_skip_if_unavailable):
     from keep.conversation import Conversation
 
-    mark = "PRIVATE-AGENT-CONVERSATION-TEST-DELETE-ME"
+    mark = "KEEP-CONVERSATION-TEST-DELETE-ME"
     convo = Conversation()
     try:
         convo.ask(f"create a reminder titled exactly '{mark}'")
