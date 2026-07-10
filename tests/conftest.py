@@ -47,3 +47,36 @@ def isolated_index_path(tmp_path: Path) -> Path:
     tmp_path -- never the real ~/.keep/index.json, so tests can never
     read or clobber the user's actual indexed file content."""
     return tmp_path / "test_index.json"
+
+
+@pytest.fixture
+def text_image_path(tmp_path: Path) -> str:
+    """A real, deterministic PNG with known text rendered into it, for a
+    genuine (not mocked, not ambient-screen-dependent) OCR test.
+
+    Uses Pillow rather than Quartz/CoreText directly -- simpler to get right
+    for "draw one line of text," and this is test-only tooling, not part of
+    the shipped package (see pyproject.toml's dev extra)."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new("RGB", (600, 200), color="white")
+    draw = ImageDraw.Draw(img)
+    # Default bitmap font is small but Vision's OCR handles it fine at this
+    # size/contrast -- no need to hunt for a specific system font file.
+    draw.text((20, 80), "KEEP TEST STRING 4471", fill="black")
+
+    out_path = tmp_path / "ocr_test.png"
+    img.save(out_path)
+    return str(out_path)
+
+
+@pytest.fixture
+def blank_image_path(tmp_path: Path) -> str:
+    """A real, genuinely blank image -- for testing the 'nothing
+    recognizable' path honestly, not just the happy path."""
+    from PIL import Image
+
+    img = Image.new("RGB", (600, 200), color="white")
+    out_path = tmp_path / "blank.png"
+    img.save(out_path)
+    return str(out_path)

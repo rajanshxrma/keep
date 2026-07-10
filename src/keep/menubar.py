@@ -1,4 +1,4 @@
-"""Menu bar shell for the private agent, built with rumps."""
+"""Menu bar shell for Keep, built with rumps."""
 
 import threading
 
@@ -8,13 +8,28 @@ from PyObjCTools import AppHelper
 from keep.conversation import Conversation
 
 
-class PrivateAgentApp(rumps.App):
+class KeepApp(rumps.App):
     def __init__(self) -> None:
         super().__init__("Keep", icon=None, title="\U0001f916")
         self._conversation = Conversation()
+        # Single-in-flight guard: a queued second ask against a model that
+        # can take 6-13s is a footgun (the user gets an answer to a question
+        # they've forgotten asking), so a second Ask while busy is refused
+        # with a visible notice rather than queued or silently dropped.
+        self._busy = False
+
+    def _try_start_busy(self) -> bool:
+        if self._busy:
+            rumps.notification("Keep", "", "Still working on the last one…")
+            return False
+        self._busy = True
+        return True
 
     @rumps.clicked("Ask...")
     def ask(self, _sender: rumps.MenuItem) -> None:
+        if not self._try_start_busy():
+            return
+
         window = rumps.Window(
             message="What do you need?",
             title="Keep",
@@ -25,6 +40,7 @@ class PrivateAgentApp(rumps.App):
         )
         response = window.run()
         if not response.clicked or not response.text.strip():
+            self._busy = False
             return
 
         prompt = response.text.strip()
@@ -46,6 +62,7 @@ class PrivateAgentApp(rumps.App):
                 # forever, no alert ever shown).
                 rumps.alert(title="Keep", message=answer)
                 self.title = "\U0001f916"
+                self._busy = False
 
             AppHelper.callAfter(_show_on_main_thread)
 
@@ -53,6 +70,9 @@ class PrivateAgentApp(rumps.App):
 
     @rumps.clicked("Ask (voice)")
     def ask_voice(self, _sender: rumps.MenuItem) -> None:
+        if not self._try_start_busy():
+            return
+
         self.title = "\U0001f3a4"  # microphone emoji while listening
 
         def _run_and_show() -> None:
@@ -65,6 +85,7 @@ class PrivateAgentApp(rumps.App):
                 def _show_error() -> None:
                     rumps.alert(title="Keep", message=str(exc))
                     self.title = "\U0001f916"
+                    self._busy = False
 
                 AppHelper.callAfter(_show_error)
                 return
@@ -73,6 +94,7 @@ class PrivateAgentApp(rumps.App):
 
                 def _show_nothing_heard() -> None:
                     self.title = "\U0001f916"
+                    self._busy = False
 
                 AppHelper.callAfter(_show_nothing_heard)
                 return
@@ -90,9 +112,34 @@ class PrivateAgentApp(rumps.App):
             def _show_and_speak() -> None:
                 rumps.alert(title="Keep", message=f"You said: {prompt}\n\n{answer}")
                 self.title = "\U0001f916"
+                self._busy = False
 
             AppHelper.callAfter(_show_and_speak)
             speak(answer)
+
+        threading.Thread(target=_run_and_show, daemon=True).start()
+
+    @rumps.clicked("Describe my screen")
+    def describe_screen(self, _sender: rumps.MenuItem) -> None:
+        if not self._try_start_busy():
+            return
+
+        self.title = "⏳"
+
+        def _run_and_show() -> None:
+            from keep.tools.screen import describe_my_screen
+
+            try:
+                description = describe_my_screen()
+            except Exception as exc:  # surfaced to the user, not swallowed
+                description = f"Something went wrong: {exc}"
+
+            def _show_on_main_thread() -> None:
+                rumps.alert(title="Keep", message=description)
+                self.title = "\U0001f916"
+                self._busy = False
+
+            AppHelper.callAfter(_show_on_main_thread)
 
         threading.Thread(target=_run_and_show, daemon=True).start()
 
@@ -109,7 +156,7 @@ class PrivateAgentApp(rumps.App):
 
 
 def main() -> None:
-    PrivateAgentApp().run()
+    KeepApp().run()
 
 
 if __name__ == "__main__":

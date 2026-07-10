@@ -40,9 +40,15 @@ def main() -> None:
         print(f"Index now has {result['index_size']} total chunks.")
         return
 
+    if args and args[0] == "see":
+        from keep.tools.screen import describe_my_screen
+
+        print(describe_my_screen())
+        return
+
     prompt = " ".join(args)
     if not prompt:
-        print("Usage: keep <prompt>  |  keep --voice  |  keep ingest <path>")
+        print("Usage: keep <prompt>  |  keep --voice  |  keep ingest <path>  |  keep see")
         sys.exit(1)
     print(run(prompt))
 

@@ -63,6 +63,7 @@ _TOOL_KEYWORDS = {
     "create_reminder": ["remind", "reminder", "to-do", "todo"],
     "draft_email": ["email", "e-mail", "draft", "mail to", "send a message"],
     "search_my_stuff": ["notes", "documents", "what do my files", "according to my", "my stuff"],
+    "describe_my_screen": ["screen", "what am i looking at", "what's on my", "describe what"],
 }
 
 _ALL_KEYWORDS = [kw for kws in _TOOL_KEYWORDS.values() for kw in kws]

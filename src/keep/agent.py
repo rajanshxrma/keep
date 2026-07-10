@@ -4,14 +4,21 @@ from langchain_apple_foundation_models import ChatAppleFoundationModels
 from langchain_core.tools import tool
 
 from keep.router import mlx_available, needs_tools, run_afm_plain, run_mlx
-from keep.tools import create_calendar_event, create_reminder, draft_email, search_files, search_my_stuff
+from keep.tools import (
+    create_calendar_event,
+    create_reminder,
+    describe_my_screen,
+    draft_email,
+    search_files,
+    search_my_stuff,
+)
 
 INSTRUCTIONS = (
     "You are a private, on-device assistant running entirely on this Mac. "
     "You can search the user's files, search the CONTENTS of their indexed "
-    "notes and documents, create calendar events, create reminders, and "
-    "draft (never send) emails. Be concise and direct in your answers. "
-    "Always confirm what action you took."
+    "notes and documents, describe what's on their screen, create calendar "
+    "events, create reminders, and draft (never send) emails. Be concise and "
+    "direct in your answers. Always confirm what action you took."
 )
 
 
@@ -19,6 +26,7 @@ def build_agent() -> ChatAppleFoundationModels:
     tools = [
         tool(search_files),
         tool(search_my_stuff),
+        tool(describe_my_screen),
         tool(create_calendar_event),
         tool(create_reminder),
         tool(draft_email),
