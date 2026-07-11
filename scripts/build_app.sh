@@ -28,6 +28,26 @@ mv pyproject.toml.build-bak pyproject.toml
 
 python3 scripts/check_version.py
 
+# A successful py2app build is not the same as a working app -- shipped
+# v0.1.0's first build passed check_version.py and looked fine, but crashed
+# on every launch with a ModuleNotFoundError from a missing compiled
+# dependency (charset_normalizer's mypyc runtime module, invisible to
+# py2app's automatic dependency scan -- see setup.py's
+# _mypyc_runtime_includes() comment) that only a real launch attempt would
+# have caught. Never skip this step, even when only chasing a version bump.
+echo "Verifying the built app actually launches..."
+dist/Keep.app/Contents/MacOS/Keep > /tmp/keep-build-launch-check.log 2>&1 &
+LAUNCH_PID=$!
+sleep 4
+if ! kill -0 "$LAUNCH_PID" 2>/dev/null; then
+    echo "BUILD FAILED: the app crashed on launch. Output:" >&2
+    cat /tmp/keep-build-launch-check.log >&2
+    exit 1
+fi
+kill -TERM "$LAUNCH_PID"
+rm -f /tmp/keep-build-launch-check.log
+echo "Launch check passed."
+
 VERSION=$(python3 -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/keep/__init__.py').read()).group(1))")
 cd dist
 zip -r -q "Keep-${VERSION}-macos.zip" "Keep.app"
