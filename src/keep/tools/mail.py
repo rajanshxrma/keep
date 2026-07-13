@@ -23,12 +23,21 @@ def draft_email(to: str, subject: str, body: str) -> str:
         end tell
     end tell
     '''
-    result = subprocess.run(
-        ["osascript", "-e", script],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            # See calendar.py's identical comment -- a first-time consent
+            # dialog for Mail automation can easily exceed a short timeout,
+            # and an uncaught TimeoutExpired surfaces as a raw traceback.
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        return (
+            "Creating the draft took too long -- if macOS just asked for "
+            "permission to control Mail, please allow it and try again."
+        )
     if result.returncode != 0:
         return f"Failed to create draft: {result.stderr.strip()}"
     return f"Created a draft email to {to} with subject '{subject}'. It has not been sent -- review it in Mail."

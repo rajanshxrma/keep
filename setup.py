@@ -113,6 +113,7 @@ DATA_FILES = [
 ]
 OPTIONS = {
     "argv_emulation": False,
+    "iconfile": "assets/Keep.icns",
     "plist": {
         "CFBundleName": "Keep",
         "CFBundleDisplayName": "Keep",
@@ -120,6 +121,23 @@ OPTIONS = {
         "CFBundleShortVersionString": VERSION,
         "CFBundleVersion": VERSION,
         "LSUIElement": True,
+        # Without these, TCC silently denies the first calendar/reminders/
+        # mail automation call or the first voice use from inside the
+        # packaged app -- no prompt, no error naming the cause, just a
+        # failure that looks like a Keep bug. The unbundled pip/venv path
+        # never hit this because there's no bundle Info.plist for TCC to
+        # read a missing string from in the first place.
+        "NSAppleEventsUsageDescription": (
+            "Keep uses Apple events to create calendar events and "
+            "reminders, and draft email, on your behalf."
+        ),
+        "NSMicrophoneUsageDescription": (
+            "Keep uses the microphone so you can ask it questions by voice."
+        ),
+        "NSSpeechRecognitionUsageDescription": (
+            "Keep uses on-device speech recognition to transcribe what you "
+            "say when asking by voice."
+        ),
     },
     "packages": sorted({
         "keep",

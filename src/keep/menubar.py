@@ -180,9 +180,12 @@ class KeepApp(rumps.App):
         # a harmless no-op re-check rather than a crash.
         self._conversation, self._unavailable_reason = _new_conversation()
 
-    @rumps.clicked("Quit")
-    def quit_app(self, _sender: rumps.MenuItem) -> None:
-        rumps.quit_application()
+    # No custom Quit handler -- rumps.App already adds its own default Quit
+    # item, and a second @rumps.clicked("Quit") handler here used to add a
+    # *second* one (both calling the same rumps.quit_application()
+    # underneath), so the menu showed "Quit" twice (verified in the
+    # pre-launch audit). The default is all this app needs; no custom
+    # cleanup was happening in the removed handler.
 
 
 def main() -> None:

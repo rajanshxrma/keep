@@ -34,12 +34,25 @@ def create_calendar_event(title: str, start_date: str, start_time: str = "09:00"
         end tell
     end tell
     '''
-    result = subprocess.run(
-        ["osascript", "-e", script],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            # A first-time user's very first calendar action pops macOS's
+            # automation-consent dialog, which blocks osascript until it's
+            # answered -- 10s is easily exceeded reading that dialog. An
+            # uncaught TimeoutExpired here surfaced to the user as a raw
+            # Python traceback via the agent's tool-error path (verified in
+            # the pre-launch audit); matches reminders.py's own timeout for
+            # the same reason.
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        return (
+            "Creating the event took too long -- if macOS just asked for "
+            "permission to control Calendar, please allow it and try again."
+        )
     if result.returncode != 0:
         return f"Failed to create event: {result.stderr.strip()}"
     return f"Created event '{title}' on {start_date} at {start_time}."

@@ -53,6 +53,19 @@ def main() -> None:
         if len(args) < 2:
             print("Usage: keep ingest <path>")
             sys.exit(1)
+        from pathlib import Path
+
+        # discover_files() silently returns zero files for a path that
+        # doesn't exist (rglob on a missing directory just yields nothing,
+        # not an error), so a typo'd path used to print "Indexed 0 file(s)"
+        # -- success-shaped output for what's actually a mistake (verified
+        # in the pre-launch audit). Catch it here, at the one place that
+        # knows this path came directly from the user, rather than in
+        # ingest_path itself (also called by tests with paths it fully
+        # controls).
+        if not Path(args[1]).exists():
+            print(f"Path does not exist: {args[1]}")
+            sys.exit(1)
         result = ingest_path(args[1])
         print(f"Indexed {len(result['indexed_files'])} file(s), {result['total_chunks']} chunks.")
         if result["skipped_files"]:

@@ -7,8 +7,8 @@ Nothing leaves your machine.
 
 ## What Keep does
 
-- **Acts** — calendar events, reminders, mail drafts, file search.
-- **Searches** — ask questions about your own notes and documents (`keep ingest <path>`); answers come with citations back to the source.
+- **Acts** — creates calendar events, reminders, and mail drafts (never sends), and finds files by name.
+- **Searches** — ask questions about your own notes and documents (`keep ingest <path>`), answered from the retrieved passages. The on-device model is small, and on short/ambiguous corpora it can misstate details it's asked to extract — treat answers as a starting point, not a citation you can quote from.
 - **Sees** — describes what's on your screen (`keep see`, or ask out loud).
 - **Speaks** — ask by voice, hear the answer back.
 
@@ -29,7 +29,13 @@ unavailable.
 
 ## Install
 
+Requires **Python 3.10+** in a virtual environment — Keep's model provider
+dependency won't resolve at all under macOS's system Python (3.9), and
+Homebrew's Python refuses a bare `pip install` (PEP 668):
+
 ```
+python3 -m venv venv
+source venv/bin/activate
 pip install git+https://github.com/rajanshxrma/keep
 keep-menubar   # launches the menu bar app
 ```
@@ -43,20 +49,24 @@ keep see
 keep --voice
 ```
 
+The first command in a fresh process takes ~30s while the on-device model
+loads — the CLI doesn't print anything until it's done, so this looks stuck
+but isn't. Every call after that is a few seconds.
+
 ### Prebuilt app (unsigned)
 
 A prebuilt `Keep.app` is attached to each [release](https://github.com/rajanshxrma/keep/releases).
 It isn't signed — I'm a student, and Apple's $99/year developer program
-isn't something I can justify for a free project yet. macOS will say the
-app "cannot be verified" or is "damaged" on first launch. That's Gatekeeper
-being cautious about unsigned software, not a real problem with the app:
+isn't something I can justify for a free project yet. On current macOS
+(Sequoia and later), the app opens straight to **"Keep" is damaged and
+can't be opened. You should move it to the Trash.** — no Open button, and
+Privacy & Security's Open Anyway doesn't appear for this verdict either. It
+looks alarming but isn't; it's Gatekeeper being strict about unsigned
+software, not a real problem with the app. One terminal command fixes it:
 
-1. Right-click `Keep.app` → **Open** → **Open** (this one-time step is all
-   it takes — after that it launches normally like anything else).
-2. If macOS still refuses: **System Settings → Privacy & Security**, scroll
-   down, click **Open Anyway**.
-3. If you're comfortable in a terminal, this does the same thing in one
-   line: `xattr -dr com.apple.quarantine Keep.app`
+```
+xattr -dr com.apple.quarantine Keep.app
+```
 
 This happens once. Keep never touches the network — you can watch.
 
