@@ -128,13 +128,50 @@ class Index:
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.path, "w") as f:
-            json.dump([asdict(c) for c in self._chunks], f)
-        # Real personal document content lives in this file -- restrict to
-        # owner read/write only, not the default umask-derived permissions.
-        os.chmod(self.path, 0o600)
+        # Write to a temp file in the same directory, then os.replace() into
+        # place -- a crash/kill/power-loss mid-write to the real path would
+        # otherwise leave truncated JSON that load() can't parse (see
+        # load()'s own comment for what that does to every future ingest
+        # and search). os.replace() is atomic on the same filesystem, so
+        # index.json is always either the old complete content or the new
+        # complete content, never a partial write. The 0600 permission is
+        # set on the temp file before it's ever visible at the real path
+        # (via the os.open mode, not a chmod after the fact) -- real
+        # personal document content lives in this file, so it never sits
+        # briefly at the default umask like the old open()-then-chmod order
+        # allowed.
+        tmp_path = self.path.with_suffix(".json.tmp")
+        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump([asdict(c) for c in self._chunks], f)
+        except BaseException:
+            tmp_path.unlink(missing_ok=True)
+            raise
+        os.replace(tmp_path, self.path)
 
     def load(self, path: Path | None = None) -> None:
-        with open(path or self.path) as f:
-            raw = json.load(f)
+        load_path = path or self.path
+        with open(load_path) as f:
+            try:
+                raw = json.load(f)
+            except json.JSONDecodeError:
+                # A truncated/corrupt index used to brick every future
+                # ingest and search forever (json.load raising here
+                # propagated straight out of Index(), which every caller
+                # constructs fresh) until the user somehow knew to go
+                # hand-delete a hidden file (verified in the pre-launch
+                # audit). Preserve the bad file for inspection instead of
+                # silently discarding it, and start clean rather than
+                # crash -- an empty index that works is better than a
+                # permanently broken one.
+                corrupt_path = load_path.with_name(load_path.name + ".corrupt")
+                load_path.rename(corrupt_path)
+                print(
+                    f"Keep's search index at {load_path} was corrupted and has "
+                    f"been moved to {corrupt_path}. Starting with an empty "
+                    "index -- run `keep ingest` again to rebuild it."
+                )
+                self._chunks = []
+                return
         self._chunks = [IndexedChunk(**row) for row in raw]
