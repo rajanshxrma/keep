@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Not sandboxed: Developer ID (non-App Store) distribution, and Keep
+	     needs unrestricted filesystem access for ingest paths plus Apple
+	     Events for Mail/Calendar automation, which sandboxing complicates
+	     significantly. No com.apple.security.app-sandbox key = unsandboxed. -->
+
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+	<!-- Required for the Mail/Calendar/Reminders automation tools (see
+	     NSAppleEventsUsageDescription in setup.py) to actually send Apple
+	     Events once hardened runtime is on -- without this the usage-string
+	     prompt appears but the call itself is blocked. -->
+
+	<key>com.apple.security.device.microphone</key>
+	<true/>
+	<!-- Voice input (see NSMicrophoneUsageDescription in setup.py). -->
+
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+	<!-- py2app bundles third-party compiled .so/.dylib files (mlx, numpy,
+	     applefoundationmodels, pydantic_core, charset_normalizer's mypyc
+	     module) that are not signed by team 58Q76NHADF. Hardened runtime's
+	     default library validation only allows loading code signed by the
+	     same team or by Apple -- without this entitlement the app would
+	     likely crash on first use of any of those, the same class of
+	     "build succeeded, launch didn't" bug already hit twice during
+	     v0.1.0's unsigned build (see keep-product-state memory). -->
+
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<true/>
+	<!-- Some bundled scientific/ML native extensions allocate executable
+	     pages (JIT-style) at runtime; hardened runtime blocks this by
+	     default and the failure mode is a silent crash deep in a C
+	     extension, not a clear error. -->
+</dict>
+</plist>
