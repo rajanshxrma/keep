@@ -6,13 +6,34 @@ import threading
 import rumps
 from PyObjCTools import AppHelper
 
-from keep.conversation import Conversation
+_UNAVAILABLE_MESSAGE = (
+    "Keep's on-device model isn't available on this Mac "
+    "(requires macOS 26+ with Apple Intelligence enabled)."
+)
+
+
+def _new_conversation():
+    """Lazily imports/constructs Conversation. keep.conversation imports
+    keep.agent, which imports ChatAppleFoundationModels -- that hard-links
+    Apple's FoundationModels framework, so on an unsupported Mac the OLD
+    module-level `from keep.conversation import Conversation` crashed the
+    entire app before rumps.App.run() ever started the event loop: no menu
+    bar icon, no dialog, no console for a packaged .app -- a completely
+    silent launch failure. Deferred so the icon always appears; unavailable
+    is now just a state the Ask handlers check, not a startup crash.
+    Returns (conversation_or_None, error_message_or_None)."""
+    try:
+        from keep.conversation import Conversation
+
+        return Conversation(), None
+    except ImportError as e:
+        return None, f"{_UNAVAILABLE_MESSAGE}\nUnderlying error: {e}"
 
 
 class KeepApp(rumps.App):
     def __init__(self) -> None:
         super().__init__("Keep", icon=None, title="\U0001f916")
-        self._conversation = Conversation()
+        self._conversation, self._unavailable_reason = _new_conversation()
         # Single-in-flight guard: a queued second ask against a model that
         # can take 6-13s is a footgun (the user gets an answer to a question
         # they've forgotten asking), so a second Ask while busy is refused
@@ -28,6 +49,9 @@ class KeepApp(rumps.App):
 
     @rumps.clicked("Ask...")
     def ask(self, _sender: rumps.MenuItem) -> None:
+        if self._conversation is None:
+            rumps.alert(title="Keep", message=self._unavailable_reason)
+            return
         if not self._try_start_busy():
             return
 
@@ -71,6 +95,9 @@ class KeepApp(rumps.App):
 
     @rumps.clicked("Ask (voice)")
     def ask_voice(self, _sender: rumps.MenuItem) -> None:
+        if self._conversation is None:
+            rumps.alert(title="Keep", message=self._unavailable_reason)
+            return
         if not self._try_start_busy():
             return
 
@@ -149,7 +176,9 @@ class KeepApp(rumps.App):
         # Asks accumulate context (see conversation.py) so follow-ups like
         # "make it 3pm instead" work -- this is the explicit way to drop that
         # context and start clean, since it isn't safe to reset automatically.
-        self._conversation = Conversation()
+        # If the model was never available (see _new_conversation), this is
+        # a harmless no-op re-check rather than a crash.
+        self._conversation, self._unavailable_reason = _new_conversation()
 
     @rumps.clicked("Quit")
     def quit_app(self, _sender: rumps.MenuItem) -> None:
