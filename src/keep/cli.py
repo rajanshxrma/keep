@@ -2,7 +2,26 @@
 
 import sys
 
-from keep.agent import run
+
+def _load_run():
+    """Lazily imports keep.agent.run -- it transitively imports
+    ChatAppleFoundationModels, which hard-links Apple's FoundationModels
+    framework (macOS 26+, Apple Intelligence enabled). Importing it at
+    module level meant every command -- including --version and ingest,
+    which need no LLM at all -- crashed with a raw dyld traceback on any
+    unsupported Mac. Deferred here so only the commands that actually need
+    the model pay that cost, with one clean message instead of a traceback."""
+    try:
+        from keep.agent import run
+
+        return run
+    except ImportError as e:
+        print(
+            "Keep's on-device model isn't available on this Mac "
+            "(requires macOS 26+ with Apple Intelligence enabled).\n"
+            f"Underlying error: {e}"
+        )
+        sys.exit(1)
 
 
 def main() -> None:
@@ -16,6 +35,7 @@ def main() -> None:
     if args and args[0] == "--voice":
         from keep.voice import listen, speak
 
+        run = _load_run()
         print("Listening...")
         prompt = listen()
         if not prompt:
@@ -50,6 +70,7 @@ def main() -> None:
     if not prompt:
         print("Usage: keep <prompt>  |  keep --voice  |  keep ingest <path>  |  keep see")
         sys.exit(1)
+    run = _load_run()
     print(run(prompt))
 
 

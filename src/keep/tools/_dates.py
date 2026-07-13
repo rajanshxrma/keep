@@ -39,7 +39,15 @@ def normalize_date(raw: Optional[str]) -> Optional[str]:
     key = raw.strip().lower()
 
     if _MM_DD_YYYY.match(raw.strip()):
-        return raw.strip()
+        # The regex only checks shape (two digits/two digits/four digits) --
+        # it accepts 13/45/2026, which AppleScript then silently rolls over
+        # to a different real date instead of rejecting. strptime enforces
+        # an actual calendar-valid month/day.
+        try:
+            datetime.strptime(raw.strip(), "%m/%d/%Y")
+            return raw.strip()
+        except ValueError:
+            return None
 
     if key in _SIMPLE_OFFSETS:
         return _in_days(_SIMPLE_OFFSETS[key])
@@ -58,6 +66,32 @@ def normalize_date(raw: Optional[str]) -> Optional[str]:
     # 20th", ambiguous "15-10-24", etc.) is not trustworthy enough to act
     # on -- drop it rather than risk a confidently wrong date.
     return None
+
+
+def applescript_date_expr(mm_dd_yyyy: str, hh_mm: Optional[str] = None) -> str:
+    """AppleScript statements that build the given MM/DD/YYYY (+ optional
+    HH:MM, 24h) date into a variable named `theDate`, numerically -- never
+    via `date "<string>"`. That string form is parsed in AppleScript's own
+    interpretation of the *user's* system date-format setting, so a
+    normalize_date()-approved "07/12/2026" (July 12th) silently reads as
+    "12 July 2026" on any Mac set to a day-first locale -- correct dates
+    landing on the wrong day for a majority-non-US audience. Building from
+    named components (year/month/day/hours/minutes) is locale-independent.
+
+    Day is set to 1 before year/month to avoid an invalid intermediate date
+    (e.g. today the 31st + a shorter target month), then set for real after."""
+    month, day, year = (int(p) for p in mm_dd_yyyy.split("/"))
+    hours, minutes = (int(p) for p in hh_mm.split(":")) if hh_mm else (0, 0)
+    return f'''
+        set theDate to current date
+        set day of theDate to 1
+        set year of theDate to {year}
+        set month of theDate to {month}
+        set day of theDate to {day}
+        set hours of theDate to {hours}
+        set minutes of theDate to {minutes}
+        set seconds of theDate to 0
+    '''
 
 
 def _in_days(n: int) -> str:

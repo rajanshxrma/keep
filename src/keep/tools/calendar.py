@@ -3,7 +3,7 @@
 import subprocess
 
 from keep.tools._applescript import escape
-from keep.tools._dates import normalize_date
+from keep.tools._dates import applescript_date_expr, normalize_date
 
 
 def create_calendar_event(title: str, start_date: str, start_time: str = "09:00") -> str:
@@ -27,7 +27,7 @@ def create_calendar_event(title: str, start_date: str, start_time: str = "09:00"
     start_date = normalized
     title_e = escape(title)
     script = f'''
-    set theDate to date "{start_date} {start_time}"
+    {applescript_date_expr(start_date, start_time)}
     tell application "Calendar"
         tell calendar 1
             make new event with properties {{summary:"{title_e}", start date:theDate, end date:(theDate + 1 * hours)}}

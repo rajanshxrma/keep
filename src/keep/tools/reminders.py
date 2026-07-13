@@ -3,7 +3,7 @@
 import subprocess
 
 from keep.tools._applescript import escape
-from keep.tools._dates import normalize_date
+from keep.tools._dates import applescript_date_expr, normalize_date
 
 
 def create_reminder(title: str, due_date: str = "") -> str:
@@ -24,10 +24,10 @@ def create_reminder(title: str, due_date: str = "") -> str:
     title_e = escape(title)
     if due_date:
         script = f'''
-        set dueDate to date "{due_date}"
+        {applescript_date_expr(due_date)}
         tell application "Reminders"
             tell default list
-                make new reminder with properties {{name:"{title_e}", due date:dueDate}}
+                make new reminder with properties {{name:"{title_e}", due date:theDate}}
             end tell
         end tell
         '''

@@ -1,7 +1,16 @@
 """Grounded answer generation -- the on-device replacement for finance-rag's
 generator.py (which called OpenAI's chat completions). Same discipline:
 answer only from retrieved context, cite sources, admit when nothing
-relevant was found rather than guessing."""
+relevant was found rather than guessing.
+
+Not used by the agent's search_my_stuff tool: creating a ChatAppleFoundationModels
+session here, called from inside a tool the outer agent invokes mid-generation,
+hit Apple's one-in-flight-generation-per-process constraint as a genuine
+deadlock (reproduced live: run() on a search question never returned in 4+
+minutes), not merely slow concurrency contention -- see stuff.py, which
+returns raw cited passages for the outer agent's own session to answer from
+instead. This remains valid and tested for direct, non-agentic use (a single
+top-level call, nothing else in flight)."""
 
 from __future__ import annotations
 

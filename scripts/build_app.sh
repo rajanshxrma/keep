@@ -48,6 +48,50 @@ kill -TERM "$LAUNCH_PID"
 rm -f /tmp/keep-build-launch-check.log
 echo "Launch check passed."
 
+# Launch succeeding is STILL not the same as the app working: the app
+# bundled this way (v0.1.0's actual release asset, sha256-verified) launched
+# fine but crashed the moment a real question was asked -- a second missing
+# native dependency (applefoundationmodels/libfoundation_models.dylib, see
+# setup.py's "packages" list comment), invisible to the launch check above
+# because it only manifests when the model actually runs. The bundle has no
+# separate CLI binary to invoke (APP = ["src/keep/menubar.py"] only, no
+# args) -- instead this drives the app's OWN bundled interpreter (proving
+# the exact site-packages the shipped .app will use, not this repo's dev
+# .venv) through the same agent.run() the menu bar's Ask handler calls.
+echo "Verifying the built app can actually answer a question..."
+BUNDLED_PY="dist/Keep.app/Contents/MacOS/python"
+BUNDLED_LIB="dist/Keep.app/Contents/Resources/lib/python3.14"
+BUNDLED_ZIP="dist/Keep.app/Contents/Resources/lib/python314.zip"
+# Both paths: "packages" entries (keep, rumps, applefoundationmodels, ...)
+# are extracted as real directories under BUNDLED_LIB, but "includes" like
+# typing_extensions land inside BUNDLED_ZIP instead -- the real app's own
+# generated site.pyc puts both on sys.path at launch, so a check missing
+# either one can fail (or pass) for reasons that have nothing to do with
+# whether the actual shipped app works.
+ANSWER=$("$BUNDLED_PY" -c "
+import sys
+sys.path.insert(0, '$BUNDLED_LIB')
+sys.path.insert(0, '$BUNDLED_ZIP')
+from keep.agent import run
+print(run('what is 2+2? answer with just the number'))
+" 2>&1) || true
+if echo "$ANSWER" | grep -q "Traceback (most recent call last)"; then
+    echo "BUILD FAILED: the built app's own bundled interpreter crashed answering a real question." >&2
+    echo "Output was:" >&2
+    echo "$ANSWER" >&2
+    exit 1
+fi
+if ! echo "$ANSWER" | grep -qE '(^|[^0-9.])4([^0-9.]|$)'; then
+    # Word-boundary-style match, not a bare "4" substring -- every path in
+    # this bundle contains "python3.14", which a plain `grep -q "4"` matches
+    # even on a crash traceback, giving a false pass on a broken build.
+    echo "BUILD FAILED: the built app's own bundled interpreter could not answer a real question." >&2
+    echo "Output was:" >&2
+    echo "$ANSWER" >&2
+    exit 1
+fi
+echo "Question-answering check passed (answered: ${ANSWER})."
+
 VERSION=$(python3 -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/keep/__init__.py').read()).group(1))")
 cd dist
 zip -r -q "Keep-${VERSION}-macos.zip" "Keep.app"

@@ -19,6 +19,14 @@ while Keep answers a question with no `[mlx]` extra installed, and you'll
 see nothing leave the machine. Privacy you can check beats privacy you have
 to trust.
 
+## Requirements
+
+macOS 26+, Apple Silicon, with Apple Intelligence enabled (Settings →
+Apple Intelligence & Siri). Keep's on-device model won't load without it --
+`keep --version` and `keep ingest` still work on any Mac, but every command
+that needs the model gives one clear message instead of a crash if it's
+unavailable.
+
 ## Install
 
 ```
@@ -29,7 +37,7 @@ keep-menubar   # launches the menu bar app
 or run it without the menu bar shell:
 
 ```
-keep "what's on my calendar today"
+keep "remind me to call the dentist tomorrow"
 keep ingest ~/Documents/some-notes
 keep see
 keep --voice
