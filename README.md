@@ -53,22 +53,12 @@ The first command in a fresh process takes ~30s while the on-device model
 loads — the CLI doesn't print anything until it's done, so this looks stuck
 but isn't. Every call after that is a few seconds.
 
-### Prebuilt app (unsigned)
+### Prebuilt app (signed & notarized)
 
-A prebuilt `Keep.app` is attached to each [release](https://github.com/rajanshxrma/keep/releases).
-It isn't notarized yet — signing and notarization are on the list, but
-this release predates that setup. On current macOS (Sequoia and later), an
-un-notarized app opens straight to **"Keep" is damaged and can't be
-opened. You should move it to the Trash.** — no Open button, and Privacy &
-Security's Open Anyway doesn't appear for this verdict either. It looks
-alarming but isn't; it's Gatekeeper being strict about un-notarized
-software, not a real problem with the app. One terminal command fixes it:
-
-```
-xattr -dr com.apple.quarantine Keep.app
-```
-
-This happens once. Keep never touches the network — you can watch.
+A prebuilt `Keep.app` is attached to each [release](https://github.com/rajanshxrma/keep/releases),
+signed with a Developer ID certificate and notarized by Apple. Unzip it and
+open it like any other Mac app — no Gatekeeper warning, no terminal
+workaround needed.
 
 ## Where Keep came from
 
