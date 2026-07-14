@@ -11,7 +11,7 @@
 	<true/>
 	<!-- Required for the Mail/Calendar/Reminders automation tools (see
 	     NSAppleEventsUsageDescription in setup.py) to actually send Apple
-	     Events once hardened runtime is on -- without this the usage-string
+	     Events once hardened runtime is on: without this, the usage-string
 	     prompt appears but the call itself is blocked. -->
 
 	<key>com.apple.security.device.microphone</key>
@@ -24,7 +24,7 @@
 	     applefoundationmodels, pydantic_core, charset_normalizer's mypyc
 	     module) that are not signed by team 58Q76NHADF. Hardened runtime's
 	     default library validation only allows loading code signed by the
-	     same team or by Apple -- without this entitlement the app would
+	     same team or by Apple; without this entitlement the app would
 	     likely crash on first use of any of those, the same class of
 	     "build succeeded, launch didn't" bug already hit twice during
 	     v0.1.0's unsigned build (see keep-product-state memory). -->

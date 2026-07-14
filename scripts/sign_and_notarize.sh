@@ -54,8 +54,42 @@ if [ -z "$SIGN_IDENTITY" ]; then
 fi
 echo "Signing with: $SIGN_IDENTITY"
 
-echo "Codesigning (deep, hardened runtime, secure timestamp)..."
-codesign --force --deep --options runtime --timestamp \
+echo "Codesigning bottom-up (hardened runtime, secure timestamp)..."
+# --deep is unreliable on py2app bundles: it silently failed to properly
+# sign most of the ~150 loose .so/.dylib files under Contents/Resources
+# (they're plain data files to codesign's dependency walker, not nested in
+# a .framework/.bundle it knows to recurse into) -- the notary service
+# rejected the first attempt with "signature of the binary is invalid" /
+# "not signed with a valid Developer ID certificate" on dozens of them
+# even though `codesign --verify --deep --strict` passed locally. Apple's
+# own guidance for exactly this case: sign every nested Mach-O binary
+# individually, innermost first, then the app last.
+echo "  - leaf .so/.dylib files..."
+find "$APP_PATH" -type f \( -name "*.so" -o -name "*.dylib" \) -print0 |
+    xargs -0 -n1 codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY"
+
+echo "  - embedded frameworks..."
+if [ -d "$APP_PATH/Contents/Frameworks" ]; then
+    find "$APP_PATH/Contents/Frameworks" -maxdepth 1 -name "*.framework" -print0 |
+        xargs -0 -n1 codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY"
+fi
+
+echo "  - other MacOS/ executables (e.g. the bundled python interpreter)..."
+# Entitlements go on these too, not just the "Keep" binary below: if
+# "Keep" execs the bundled "python" as a replacement process image, TCC
+# and hardened-runtime checks apply to whichever binary's own signature
+# is actually running, not the one that originally launched.
+find "$APP_PATH/Contents/MacOS" -type f -perm +111 ! -name "Keep" -print0 |
+    xargs -0 -n1 codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS" --sign "$SIGN_IDENTITY"
+
+echo "  - main executable..."
+codesign --force --options runtime --timestamp \
+    --entitlements "$ENTITLEMENTS" \
+    --sign "$SIGN_IDENTITY" \
+    "$APP_PATH/Contents/MacOS/Keep"
+
+echo "  - app bundle (top-level, no --deep needed now)..."
+codesign --force --options runtime --timestamp \
     --entitlements "$ENTITLEMENTS" \
     --sign "$SIGN_IDENTITY" \
     "$APP_PATH"
@@ -66,7 +100,16 @@ codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 VERSION=$(python3 -c "import re; print(re.search(r'__version__ = \"([^\"]+)\"', open('src/keep/__init__.py').read()).group(1))")
 ZIP_PATH="dist/Keep-${VERSION}-macos-signed.zip"
 echo "Zipping for notarization submission..."
-(cd dist && zip -r -q "Keep-${VERSION}-macos-signed.zip" "Keep.app")
+# ditto, not zip: plain zip can mangle code-signing metadata on the way
+# into the archive, which silently corrupts the signature Apple's notary
+# service sees for the most complex signed binaries (a bundle's main
+# executable, a framework's main binary) even though the on-disk copy
+# verifies fine locally -- exactly the failure hit here on the first two
+# attempts ("signature of the binary is invalid" only on Keep and
+# Python.framework/Python, the two "bundle main executable" cases).
+# Apple's own notarization docs specify ditto for this reason.
+rm -f "$ZIP_PATH"
+ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
 echo "Submitting to Apple's notary service (this can take a few minutes)..."
 xcrun notarytool submit "$ZIP_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
@@ -80,7 +123,7 @@ spctl -a -vvv --type execute "$APP_PATH"
 # Re-zip after stapling -- the ticket must be inside the shipped bundle,
 # and the pre-staple zip above was only for notarytool's submission.
 rm -f "$ZIP_PATH"
-(cd dist && zip -r -q "Keep-${VERSION}-macos-signed.zip" "Keep.app")
+ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
 echo ""
 echo "Done: $ZIP_PATH is signed, notarized, and stapled."
